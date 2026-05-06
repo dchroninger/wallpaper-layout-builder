@@ -14,12 +14,31 @@ import { getAspectRatio, getPhysicalWidthFromDiagonal } from '../utils/geometry'
 const CUSTOM_PRESETS_KEY = 'wallpaper-cropper-custom-presets';
 
 interface AppState {
+  // Theme
+  theme: 'dark' | 'light';
+  accent: string;
+  setTheme: (theme: 'dark' | 'light') => void;
+  setAccent: (accent: string) => void;
+
+  // Tool
+  tool: 'select' | 'hand';
+  setTool: (tool: 'select' | 'hand') => void;
+  selectedMonitorId: string | null;
+  setSelectedMonitorId: (id: string | null) => void;
+  showExportModal: boolean;
+  setShowExportModal: (show: boolean) => void;
+
   // Image
   imageUrl: string | null;
   imageWidth: number;
   imageHeight: number;
   setImage: (url: string, width: number, height: number) => void;
   clearImage: () => void;
+
+  // Wallpaper gallery (uploaded wallpapers)
+  wallpapers: Array<{ id: string; url: string; width: number; height: number; name: string }>;
+  addWallpaper: (url: string, width: number, height: number, name: string) => string;
+  removeWallpaper: (id: string) => void;
 
   // Monitors
   monitors: Monitor[];
@@ -78,12 +97,42 @@ function generateId(): string {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      // Theme
+      theme: 'dark',
+      accent: '#10B981',
+      setTheme: (theme) => set({ theme }),
+      setAccent: (accent) => set({ accent }),
+
+      // Tool
+      tool: 'select',
+      setTool: (tool) => set({ tool }),
+      selectedMonitorId: null,
+      setSelectedMonitorId: (id) => set({ selectedMonitorId: id }),
+      showExportModal: false,
+      setShowExportModal: (show) => set({ showExportModal: show }),
+
       // Image
       imageUrl: null,
       imageWidth: 0,
       imageHeight: 0,
       setImage: (url, width, height) => set({ imageUrl: url, imageWidth: width, imageHeight: height }),
       clearImage: () => set({ imageUrl: null, imageWidth: 0, imageHeight: 0 }),
+
+      // Wallpaper gallery
+      wallpapers: [],
+      addWallpaper: (url, width, height, name) => {
+        const id = generateId();
+        set((state) => ({
+          wallpapers: [...state.wallpapers, { id, url, width, height, name }],
+          imageUrl: url,
+          imageWidth: width,
+          imageHeight: height,
+        }));
+        return id;
+      },
+      removeWallpaper: (id) => set((state) => ({
+        wallpapers: state.wallpapers.filter((w) => w.id !== id),
+      })),
 
       // Monitors
       monitors: [],
@@ -316,6 +365,8 @@ export const useAppStore = create<AppState>()(
     {
       name: 'wallpaper-cropper-settings',
       partialize: (state) => ({
+        theme: state.theme,
+        accent: state.accent,
         gridSize: state.gridSize,
         gridEnabled: state.gridEnabled,
         exportFormat: state.exportFormat,

@@ -12,7 +12,6 @@ import type { SnapTarget } from '../../utils/geometry';
 export function ImageCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerSize, setContainerSize] = useState({ width: 800, height: 600 });
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [snapPreview, setSnapPreview] = useState<SnapTarget | null>(null);
 
   const imageUrl = useAppStore((s) => s.imageUrl);
@@ -22,6 +21,8 @@ export function ImageCanvas() {
   const cropAreas = useAppStore((s) => s.cropAreas);
   const scale = useAppStore((s) => s.scale);
   const setScale = useAppStore((s) => s.setScale);
+  const selectedMonitorId = useAppStore((s) => s.selectedMonitorId);
+  const setSelectedMonitorId = useAppStore((s) => s.setSelectedMonitorId);
 
   const [image] = useImage(imageUrl);
 
@@ -65,7 +66,7 @@ export function ImageCanvas() {
 
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) {
-      setSelectedId(null);
+      setSelectedMonitorId(null);
     }
   };
 
@@ -73,7 +74,8 @@ export function ImageCanvas() {
     return (
       <div
         ref={containerRef}
-        className="flex-1 flex items-center justify-center bg-gray-100 text-gray-500"
+        className="flex-1 flex items-center justify-center"
+        style={{ background: 'var(--canvas-bg)', color: 'var(--text-faint)' }}
       >
         Upload an image to get started
       </div>
@@ -84,7 +86,7 @@ export function ImageCanvas() {
   const stageHeight = imageHeight * scale;
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-auto bg-gray-800 relative">
+    <div ref={containerRef} className="flex-1 overflow-auto relative" style={{ background: 'var(--canvas-bg)' }}>
       <div
         className="absolute"
         style={{
@@ -118,8 +120,8 @@ export function ImageCanvas() {
                   key={cropArea.id}
                   cropArea={cropArea}
                   monitor={monitor}
-                  isSelected={selectedId === cropArea.id}
-                  onSelect={() => setSelectedId(cropArea.id)}
+                  isSelected={selectedMonitorId === monitor.id}
+                  onSelect={() => setSelectedMonitorId(monitor.id)}
                   imageWidth={imageWidth}
                   imageHeight={imageHeight}
                   onSnapPreviewChange={setSnapPreview}

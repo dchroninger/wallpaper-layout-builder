@@ -7,9 +7,9 @@ import { ConfigPersistence } from './sidebar/ConfigPersistence';
 
 export function Sidebar() {
   return (
-    <div className="w-80 bg-white border-l border-gray-200 overflow-y-auto flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-lg font-bold text-gray-900">Wallpaper Cropper</h1>
+    <div className="overflow-y-auto flex flex-col h-full" style={{ color: 'var(--text)' }}>
+      <div className="p-4" style={{ borderBottom: '1px solid var(--line)' }}>
+        <h1 className="text-lg font-bold" style={{ color: 'var(--text)' }}>Controls</h1>
       </div>
 
       <ImageUpload />

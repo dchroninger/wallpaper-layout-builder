@@ -6,11 +6,31 @@ export function useKeyboardShortcuts() {
   const setScale = useAppStore((s) => s.setScale);
   const gridEnabled = useAppStore((s) => s.gridEnabled);
   const setGridEnabled = useAppStore((s) => s.setGridEnabled);
+  const setTool = useAppStore((s) => s.setTool);
+  const selectedMonitorId = useAppStore((s) => s.selectedMonitorId);
+  const removeMonitor = useAppStore((s) => s.removeMonitor);
+  const setSelectedMonitorId = useAppStore((s) => s.setSelectedMonitorId);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Tool shortcuts
+      if (e.key === 'v' || e.key === 'V') {
+        setTool('select');
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
+        setTool('hand');
+        return;
+      }
+
+      // Delete selected monitor
+      if ((e.key === 'Backspace' || e.key === 'Delete') && selectedMonitorId) {
+        removeMonitor(selectedMonitorId);
+        setSelectedMonitorId(null);
         return;
       }
 
@@ -35,5 +55,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scale, setScale, gridEnabled, setGridEnabled]);
+  }, [scale, setScale, gridEnabled, setGridEnabled, setTool, selectedMonitorId, removeMonitor, setSelectedMonitorId]);
 }
