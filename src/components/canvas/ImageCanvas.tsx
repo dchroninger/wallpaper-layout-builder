@@ -21,8 +21,8 @@ export function ImageCanvas() {
   const cropAreas = useAppStore((s) => s.cropAreas);
   const scale = useAppStore((s) => s.scale);
   const setScale = useAppStore((s) => s.setScale);
-  const selectedMonitorId = useAppStore((s) => s.selectedMonitorId);
-  const setSelectedMonitorId = useAppStore((s) => s.setSelectedMonitorId);
+  const selectedMonitorIds = useAppStore((s) => s.selectedMonitorIds);
+  const setSelectedMonitorIds = useAppStore((s) => s.setSelectedMonitorIds);
 
   const [image] = useImage(imageUrl);
 
@@ -66,7 +66,7 @@ export function ImageCanvas() {
 
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) {
-      setSelectedMonitorId(null);
+      setSelectedMonitorIds([]);
     }
   };
 
@@ -75,9 +75,12 @@ export function ImageCanvas() {
       <div
         ref={containerRef}
         className="flex-1 flex items-center justify-center"
-        style={{ background: 'var(--canvas-bg)', color: 'var(--text-faint)' }}
+        style={{ color: 'var(--text-faint)' }}
       >
-        Upload an image to get started
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 14, marginBottom: 4 }}>Upload an image to get started</div>
+          <div className="hint">Use the Wallpaper panel or drag an image onto the canvas</div>
+        </div>
       </div>
     );
   }
@@ -120,8 +123,8 @@ export function ImageCanvas() {
                   key={cropArea.id}
                   cropArea={cropArea}
                   monitor={monitor}
-                  isSelected={selectedMonitorId === monitor.id}
-                  onSelect={() => setSelectedMonitorId(monitor.id)}
+                  isSelected={selectedMonitorIds.includes(monitor.id)}
+                  onSelect={() => setSelectedMonitorIds([monitor.id])}
                   imageWidth={imageWidth}
                   imageHeight={imageHeight}
                   onSnapPreviewChange={setSnapPreview}
