@@ -2,16 +2,18 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   Monitor,
+  MonitorTemplate,
+  DeskPreset,
   CropArea,
   ExportFormat,
   ExportResolution,
   SnapConnection,
-  CustomPreset,
 } from '../types';
 import { getNextColor } from '../constants/presets';
 import { getAspectRatio, getPhysicalWidthFromDiagonal } from '../utils/geometry';
 
-const CUSTOM_PRESETS_KEY = 'wallpaper-cropper-custom-presets';
+const MONITOR_LIBRARY_KEY = 'facet-monitor-library';
+const DESK_PRESETS_KEY = 'facet-desk-presets';
 
 interface AppState {
   // Theme
@@ -23,10 +25,31 @@ interface AppState {
   // Tool
   tool: 'select' | 'hand';
   setTool: (tool: 'select' | 'hand') => void;
-  selectedMonitorId: string | null;
-  setSelectedMonitorId: (id: string | null) => void;
+  selectedMonitorIds: string[];
+  setSelectedMonitorIds: (ids: string[]) => void;
+  toggleMonitorSelection: (id: string, additive: boolean) => void;
   showExportModal: boolean;
   setShowExportModal: (show: boolean) => void;
+  showAddMonitorModal: boolean;
+  setShowAddMonitorModal: (show: boolean) => void;
+
+  // Monitor library (saved monitor specs)
+  monitorLibrary: MonitorTemplate[];
+  addToLibrary: (template: Omit<MonitorTemplate, 'id'>) => void;
+  removeFromLibrary: (id: string) => void;
+  updateLibraryItem: (id: string, updates: Partial<MonitorTemplate>) => void;
+  loadMonitorLibrary: () => void;
+
+  // Desk presets (saved configurations)
+  deskPresets: DeskPreset[];
+  saveDeskPreset: (name: string) => void;
+  loadDeskPreset: (id: string) => void;
+  removeDeskPreset: (id: string) => void;
+  renameDeskPreset: (id: string, name: string) => void;
+  loadDeskPresets: () => void;
+
+  // Add monitor from library
+  addMonitorFromTemplate: (template: MonitorTemplate) => void;
 
   // Image
   imageUrl: string | null;
@@ -106,10 +129,23 @@ export const useAppStore = create<AppState>()(
       // Tool
       tool: 'select',
       setTool: (tool) => set({ tool }),
-      selectedMonitorId: null,
-      setSelectedMonitorId: (id) => set({ selectedMonitorId: id }),
+      selectedMonitorIds: [],
+      setSelectedMonitorIds: (ids) => set({ selectedMonitorIds: ids }),
+      toggleMonitorSelection: (id, additive) => {
+        const state = get();
+        if (additive) {
+          const already = state.selectedMonitorIds.includes(id);
+          set({ selectedMonitorIds: already
+            ? state.selectedMonitorIds.filter((i) => i !== id)
+            : [...state.selectedMonitorIds, id] });
+        } else {
+          set({ selectedMonitorIds: [id] });
+        }
+      },
       showExportModal: false,
       setShowExportModal: (show) => set({ showExportModal: show }),
+      showAddMonitorModal: false,
+      setShowAddMonitorModal: (show) => set({ showAddMonitorModal: show }),
 
       // Image
       imageUrl: null,
@@ -304,33 +340,166 @@ export const useAppStore = create<AppState>()(
         set({ cropAreas: updatedCropAreas });
       },
 
-      // Custom presets
-      customPresets: [],
-      addCustomPreset: (preset) => {
+      // Monitor library
+      monitorLibrary: [],
+      addToLibrary: (template) => {
         const id = generateId();
-        const newPreset: CustomPreset = { ...preset, id };
+        const item: MonitorTemplate = { ...template, id };
         set((state) => {
-          const updated = [...state.customPresets, newPreset];
-          localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
-          return { customPresets: updated };
+          const updated = [...state.monitorLibrary, item];
+          localStorage.setItem(MONITOR_LIBRARY_KEY, JSON.stringify(updated));
+          return { monitorLibrary: updated };
         });
       },
-      removeCustomPreset: (id) => {
+      removeFromLibrary: (id) => {
         set((state) => {
-          const updated = state.customPresets.filter(p => p.id !== id);
-          localStorage.setItem(CUSTOM_PRESETS_KEY, JSON.stringify(updated));
-          return { customPresets: updated };
+          const updated = state.monitorLibrary.filter((t) => t.id !== id);
+          localStorage.setItem(MONITOR_LIBRARY_KEY, JSON.stringify(updated));
+          return { monitorLibrary: updated };
         });
       },
-      loadCustomPresets: () => {
-        const saved = localStorage.getItem(CUSTOM_PRESETS_KEY);
+      updateLibraryItem: (id, updates) => {
+        set((state) => {
+          const updated = state.monitorLibrary.map((t) => (t.id === id ? { ...t, ...updates } : t));
+          localStorage.setItem(MONITOR_LIBRARY_KEY, JSON.stringify(updated));
+          return { monitorLibrary: updated };
+        });
+      },
+      loadMonitorLibrary: () => {
+        const saved = localStorage.getItem(MONITOR_LIBRARY_KEY);
         if (saved) {
-          try {
-            const presets = JSON.parse(saved);
-            set({ customPresets: presets });
-          } catch (e) {
-            console.error('Failed to load custom presets:', e);
+          try { set({ monitorLibrary: JSON.parse(saved) }); }
+          catch (e) { console.error('Failed to load monitor library:', e); }
+        }
+      },
+
+      // Add monitor from a library template
+      addMonitorFromTemplate: (template) => {
+        const state = get();
+        const usedColors = state.monitors.map((m) => m.color);
+        const color = getNextColor(usedColors);
+        const id = generateId();
+        const newMonitor: Monitor = {
+          id,
+          name: template.name,
+          spec: template.spec,
+          color,
+          diagonalInches: template.diagonalInches,
+        };
+        let aspectRatio = getAspectRatio(template.spec);
+        let defaultWidthPercent = 0.3;
+        if (template.diagonalInches && state.imageWidth > 0) {
+          const existing = state.monitors.find((m) => m.diagonalInches);
+          if (existing) {
+            const existingCrop = state.cropAreas.find((c) => c.monitorId === existing.id);
+            if (existingCrop) {
+              let existingAR = getAspectRatio(existing.spec);
+              if (existing.isPortrait) existingAR = 1 / existingAR;
+              const ePW = getPhysicalWidthFromDiagonal(existing.diagonalInches!, existingAR);
+              const nPW = getPhysicalWidthFromDiagonal(template.diagonalInches, aspectRatio);
+              defaultWidthPercent = existingCrop.widthPercent * (nPW / ePW);
+            }
           }
+        }
+        const imageAR = state.imageWidth / state.imageHeight || 1;
+        const defaultHeightPercent = defaultWidthPercent * imageAR / aspectRatio;
+        const offset = 0.02 * state.cropAreas.length;
+        const newCropArea: CropArea = {
+          id: generateId(),
+          monitorId: id,
+          xPercent: 0.05 + offset,
+          yPercent: 0.05 + offset,
+          widthPercent: defaultWidthPercent,
+          heightPercent: defaultHeightPercent,
+        };
+        set({
+          monitors: [...state.monitors, newMonitor],
+          cropAreas: [...state.cropAreas, newCropArea],
+          selectedMonitorIds: [id],
+        });
+      },
+
+      // Desk presets
+      deskPresets: [],
+      saveDeskPreset: (name) => {
+        const state = get();
+        if (state.monitors.length === 0) return;
+        const id = generateId();
+        // Compute relative positions from current crop areas
+        const presetMonitors = state.monitors.map((m) => {
+          const crop = state.cropAreas.find((c) => c.monitorId === m.id);
+          return {
+            name: m.name,
+            spec: m.spec,
+            diagonalInches: m.diagonalInches,
+            isPortrait: m.isPortrait,
+            offsetXPercent: crop?.xPercent ?? 0.05,
+            offsetYPercent: crop?.yPercent ?? 0.05,
+            widthPercent: crop?.widthPercent ?? 0.3,
+            heightPercent: crop?.heightPercent ?? 0.2,
+          };
+        });
+        const preset: DeskPreset = { id, name, monitors: presetMonitors };
+        set((s) => {
+          const updated = [...s.deskPresets, preset];
+          localStorage.setItem(DESK_PRESETS_KEY, JSON.stringify(updated));
+          return { deskPresets: updated };
+        });
+      },
+      loadDeskPreset: (presetId) => {
+        const state = get();
+        const preset = state.deskPresets.find((p) => p.id === presetId);
+        if (!preset) return;
+        const groupId = generateId();
+        const newMonitors: Monitor[] = [];
+        const newCropAreas: CropArea[] = [];
+        for (const pm of preset.monitors) {
+          const usedColors = [...state.monitors, ...newMonitors].map((m) => m.color);
+          const color = getNextColor(usedColors);
+          const mId = generateId();
+          newMonitors.push({
+            id: mId,
+            name: pm.name,
+            spec: pm.spec,
+            color,
+            diagonalInches: pm.diagonalInches,
+            isPortrait: pm.isPortrait,
+            groupId,
+          });
+          newCropAreas.push({
+            id: generateId(),
+            monitorId: mId,
+            xPercent: pm.offsetXPercent,
+            yPercent: pm.offsetYPercent,
+            widthPercent: pm.widthPercent,
+            heightPercent: pm.heightPercent,
+          });
+        }
+        set({
+          monitors: [...state.monitors, ...newMonitors],
+          cropAreas: [...state.cropAreas, ...newCropAreas],
+          selectedMonitorIds: newMonitors.map((m) => m.id),
+        });
+      },
+      removeDeskPreset: (id) => {
+        set((state) => {
+          const updated = state.deskPresets.filter((p) => p.id !== id);
+          localStorage.setItem(DESK_PRESETS_KEY, JSON.stringify(updated));
+          return { deskPresets: updated };
+        });
+      },
+      renameDeskPreset: (id, name) => {
+        set((state) => {
+          const updated = state.deskPresets.map((p) => (p.id === id ? { ...p, name } : p));
+          localStorage.setItem(DESK_PRESETS_KEY, JSON.stringify(updated));
+          return { deskPresets: updated };
+        });
+      },
+      loadDeskPresets: () => {
+        const saved = localStorage.getItem(DESK_PRESETS_KEY);
+        if (saved) {
+          try { set({ deskPresets: JSON.parse(saved) }); }
+          catch (e) { console.error('Failed to load desk presets:', e); }
         }
       },
 
