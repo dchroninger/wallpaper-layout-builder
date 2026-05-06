@@ -4,7 +4,7 @@ import { getAspectRatio } from '../../utils/geometry';
 
 export function InspectorPanel() {
   const monitors = useAppStore((s) => s.monitors);
-  const selectedMonitorId = useAppStore((s) => s.selectedMonitorId);
+  const selectedMonitorIds = useAppStore((s) => s.selectedMonitorIds);
   const cropAreas = useAppStore((s) => s.cropAreas);
   const imageWidth = useAppStore((s) => s.imageWidth);
   const imageHeight = useAppStore((s) => s.imageHeight);
@@ -12,10 +12,11 @@ export function InspectorPanel() {
   const updateCropArea = useAppStore((s) => s.updateCropArea);
   const removeMonitor = useAppStore((s) => s.removeMonitor);
   const toggleMonitorRotation = useAppStore((s) => s.toggleMonitorRotation);
-  const setSelectedMonitorId = useAppStore((s) => s.setSelectedMonitorId);
+  const setSelectedMonitorIds = useAppStore((s) => s.setSelectedMonitorIds);
 
-  const monitor = monitors.find((m) => m.id === selectedMonitorId);
-  const cropArea = cropAreas.find((c) => c.monitorId === selectedMonitorId);
+  const selectedId = selectedMonitorIds[0] ?? null;
+  const monitor = monitors.find((m) => m.id === selectedId);
+  const cropArea = cropAreas.find((c) => c.monitorId === selectedId);
 
   if (!monitor) {
     return (
@@ -95,20 +96,22 @@ export function InspectorPanel() {
             <span className="unit">px</span>
           </div>
         </div>
-        {monitor.diagonalInches !== undefined && (
-          <div className="field-row">
-            <div className="field">
-              <label>Diag</label>
-              <input
-                type="number"
-                step="0.1"
-                value={monitor.diagonalInches}
-                onChange={(e) => updateMonitor(monitor.id, { diagonalInches: parseFloat(e.target.value) || 0 })}
-              />
-              <span className="unit">in</span>
-            </div>
+        <div className="field-row">
+          <div className="field">
+            <label>Diag</label>
+            <input
+              type="number"
+              step="0.1"
+              placeholder="—"
+              value={monitor.diagonalInches ?? ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                updateMonitor(monitor.id, { diagonalInches: v ? parseFloat(v) || undefined : undefined });
+              }}
+            />
+            <span className="unit">in</span>
           </div>
-        )}
+        </div>
         {monitor.targetResolution && (
           <div className="field-row">
             <div className="field" style={{ background: 'transparent' }}>
@@ -166,7 +169,7 @@ export function InspectorPanel() {
             style={{ fontSize: 11, height: 26, padding: '0 10px' }}
             onClick={() => {
               removeMonitor(monitor.id);
-              setSelectedMonitorId(null);
+              setSelectedMonitorIds([]);
             }}
           >
             <Icon name="trash" size={11} /> Delete
