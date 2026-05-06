@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { ImageCanvas } from './components/canvas/ImageCanvas';
 import { TopBar } from './components/TopBar';
 import { DockManager } from './components/dock/DockManager';
+import { AddMonitorModal } from './components/AddMonitorModal';
 import { WallpaperPanel, WallpaperPanelHeaderActions } from './components/panels/WallpaperPanel';
 import { LayersPanel } from './components/panels/LayersPanel';
 import { PresetsPanel, PresetsPanelHeaderAction } from './components/panels/PresetsPanel';
-import type { PresetsPanelHandle } from './components/panels/PresetsPanel';
 import { InspectorPanel } from './components/panels/InspectorPanel';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/appStore';
@@ -33,7 +33,6 @@ function App() {
   const monitors = useAppStore((s) => s.monitors);
   const layout = useDockStore((s) => s.layout);
   const setLayout = useDockStore((s) => s.setLayout);
-  const presetsRef = useRef<PresetsPanelHandle>(null);
 
   const panelsRegistry = useMemo<Record<string, PanelDef>>(
     () => ({
@@ -52,10 +51,10 @@ function App() {
       },
       presets: {
         id: 'presets',
-        title: 'Presets',
+        title: 'Desk Presets',
         dotColor: '#F59E0B',
-        headerActions: <PresetsPanelHeaderAction onClick={() => presetsRef.current?.toggleCustom()} />,
-        render: () => <PresetsPanel ref={presetsRef} />,
+        headerActions: <PresetsPanelHeaderAction />,
+        render: () => <PresetsPanel />,
       },
       inspector: {
         id: 'inspector',
@@ -74,6 +73,7 @@ function App() {
       <main className="workspace">
         <ImageCanvas />
         <DockManager panels={panelsRegistry} layout={layout} setLayout={setLayout} />
+        <AddMonitorModal />
       </main>
     </div>
   );

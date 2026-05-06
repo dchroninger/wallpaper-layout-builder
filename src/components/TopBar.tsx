@@ -9,6 +9,7 @@ export function TopBar() {
   const gridEnabled = useAppStore((s) => s.gridEnabled);
   const setGridEnabled = useAppStore((s) => s.setGridEnabled);
   const setShowExportModal = useAppStore((s) => s.setShowExportModal);
+  const setShowAddMonitorModal = useAppStore((s) => s.setShowAddMonitorModal);
 
   return (
     <header className="topbar">
@@ -58,7 +59,7 @@ export function TopBar() {
           <Icon name="move" size={13} /> <span>Pan</span> <span className="kbd">H</span>
         </button>
         <div className="vdivider" />
-        <button className="tool-btn" title="Add monitor">
+        <button className="tool-btn" onClick={() => setShowAddMonitorModal(true)} title="Add monitor">
           <Icon name="plus-square" size={13} /> <span>Add monitor</span>
         </button>
         <div className="vdivider" />
