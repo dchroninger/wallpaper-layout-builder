@@ -1,118 +1,163 @@
-import { useState, useImperativeHandle, forwardRef } from 'react';
+import { useState } from 'react';
 import { Icon } from '../icons/Icon';
 import { useAppStore } from '../../store/appStore';
-import { MONITOR_PRESETS } from '../../constants/presets';
 
-export function PresetsPanelHeaderAction({ onClick }: { onClick: () => void }) {
+export function PresetsPanelHeaderAction() {
+  const saveDeskPreset = useAppStore((s) => s.saveDeskPreset);
+  const monitors = useAppStore((s) => s.monitors);
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState('');
+
+  if (naming) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (name.trim()) saveDeskPreset(name.trim());
+          setNaming(false);
+          setName('');
+        }}
+        style={{ display: 'flex', gap: 4, alignItems: 'center' }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Preset name"
+          style={{
+            height: 20,
+            fontSize: 10,
+            padding: '0 6px',
+            background: 'var(--panel-3)',
+            border: '1px solid var(--line)',
+            color: 'var(--text)',
+            borderRadius: 4,
+            outline: 'none',
+            width: 100,
+          }}
+        />
+        <button className="panel-iconbtn" type="submit" title="Save">
+          <Icon name="check" size={10} />
+        </button>
+        <button className="panel-iconbtn" type="button" onClick={() => setNaming(false)} title="Cancel">
+          <Icon name="x" size={10} />
+        </button>
+      </form>
+    );
+  }
+
   return (
-    <button className="panel-iconbtn" onClick={onClick} title="Add custom monitor">
+    <button
+      className="panel-iconbtn"
+      onClick={() => {
+        if (monitors.length === 0) return;
+        setNaming(true);
+        setName('');
+      }}
+      title={monitors.length === 0 ? 'Add monitors first' : 'Save current layout as preset'}
+    >
       <Icon name="plus" size={11} />
     </button>
   );
 }
 
-export interface PresetsPanelHandle {
-  toggleCustom: () => void;
-}
+export function PresetsPanel() {
+  const deskPresets = useAppStore((s) => s.deskPresets);
+  const loadDeskPreset = useAppStore((s) => s.loadDeskPreset);
+  const removeDeskPreset = useAppStore((s) => s.removeDeskPreset);
+  const renameDeskPreset = useAppStore((s) => s.renameDeskPreset);
+  const loadDeskPresets = useAppStore((s) => s.loadDeskPresets);
 
-export const PresetsPanel = forwardRef<PresetsPanelHandle>(function PresetsPanel(_, ref) {
-  const addMonitor = useAppStore((s) => s.addMonitor);
-  const [showCustom, setShowCustom] = useState(false);
-  const [customName, setCustomName] = useState('Custom Monitor');
-  const [customW, setCustomW] = useState(1920);
-  const [customH, setCustomH] = useState(1080);
-  const [customDiag, setCustomDiag] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [draftName, setDraftName] = useState('');
 
-  useImperativeHandle(ref, () => ({
-    toggleCustom: () => setShowCustom((v) => !v),
-  }));
-
-  const handleAddCustom = () => {
-    addMonitor({
-      name: customName || 'Custom Monitor',
-      spec: { type: 'pixels', width: customW, height: customH },
-      diagonalInches: customDiag ? parseFloat(customDiag) : undefined,
-    });
-    setShowCustom(false);
-    setCustomName('Custom Monitor');
-    setCustomW(1920);
-    setCustomH(1080);
-    setCustomDiag('');
-  };
+  // Load on mount
+  useState(() => { loadDeskPresets(); });
 
   return (
     <>
-      {showCustom && (
-        <div
-          style={{
-            padding: 10,
-            marginBottom: 8,
-            background: 'var(--panel-2)',
-            border: '1px solid var(--line)',
-            borderRadius: 9,
-          }}
-        >
-          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-faint)', marginBottom: 8 }}>
-            Custom Monitor
-          </div>
-          <div className="field" style={{ marginBottom: 6 }}>
-            <label>Name</label>
-            <input value={customName} onChange={(e) => setCustomName(e.target.value)} />
-          </div>
-          <div className="field-row" style={{ marginBottom: 6 }}>
-            <div className="field">
-              <label>W</label>
-              <input type="number" value={customW} onChange={(e) => setCustomW(parseInt(e.target.value) || 0)} />
-              <span className="unit">px</span>
-            </div>
-            <div className="field">
-              <label>H</label>
-              <input type="number" value={customH} onChange={(e) => setCustomH(parseInt(e.target.value) || 0)} />
-              <span className="unit">px</span>
-            </div>
-          </div>
-          <div className="field" style={{ marginBottom: 8 }}>
-            <label>Diag</label>
-            <input
-              type="number"
-              step="0.1"
-              placeholder="optional"
-              value={customDiag}
-              onChange={(e) => setCustomDiag(e.target.value)}
-            />
-            <span className="unit">in</span>
-          </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button className="btn primary" style={{ height: 26, fontSize: 11, flex: 1, justifyContent: 'center' }} onClick={handleAddCustom}>
-              Add
-            </button>
-            <button className="btn ghost" style={{ height: 26, fontSize: 11 }} onClick={() => setShowCustom(false)}>
-              Cancel
-            </button>
-          </div>
+      {deskPresets.length === 0 ? (
+        <div className="hint" style={{ textAlign: 'center', padding: 16 }}>
+          No desk presets yet. Arrange monitors on the canvas, then click <strong>+</strong> to save as a preset.
         </div>
-      )}
+      ) : (
+        deskPresets.map((p) => (
+          <div
+            key={p.id}
+            className="preset"
+            onClick={() => loadDeskPreset(p.id)}
+            onDoubleClick={() => { setRenamingId(p.id); setDraftName(p.name); }}
+          >
+            <div className="preset-head">
+              {renamingId === p.id ? (
+                <input
+                  autoFocus
+                  value={draftName}
+                  onChange={(e) => setDraftName(e.target.value)}
+                  onBlur={() => { renameDeskPreset(p.id, draftName); setRenamingId(null); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { renameDeskPreset(p.id, draftName); setRenamingId(null); } }}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: 'var(--panel-3)',
+                    border: '1px solid var(--line)',
+                    color: 'var(--text)',
+                    fontSize: 12,
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    width: '70%',
+                  }}
+                />
+              ) : (
+                <span className="preset-name">{p.name}</span>
+              )}
+              <span className="preset-meta">{p.monitors.length} mon</span>
+            </div>
 
-      {MONITOR_PRESETS.map((preset) => (
-        <div
-          key={preset.name}
-          className="preset"
-          onClick={() => {
-            addMonitor({
-              name: preset.name,
-              spec: preset.spec,
-              targetResolution: preset.targetResolution,
-            });
-          }}
-        >
-          <div className="preset-head">
-            <span className="preset-name">{preset.name}</span>
-            <span className="preset-meta">
-              {preset.spec.width}×{preset.spec.height}
-            </span>
+            {/* Mini preview */}
+            {p.monitors.length > 0 && (() => {
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              p.monitors.forEach((m) => {
+                minX = Math.min(minX, m.offsetXPercent);
+                minY = Math.min(minY, m.offsetYPercent);
+                maxX = Math.max(maxX, m.offsetXPercent + m.widthPercent);
+                maxY = Math.max(maxY, m.offsetYPercent + m.heightPercent);
+              });
+              const totW = maxX - minX || 0.01;
+              const totH = maxY - minY || 0.01;
+              return (
+                <div className="preset-mini">
+                  {p.monitors.map((m, i) => (
+                    <div
+                      key={i}
+                      className="preset-mini-monitor"
+                      style={{
+                        left: `${((m.offsetXPercent - minX) / totW) * 92 + 4}%`,
+                        top: `${((m.offsetYPercent - minY) / totH) * 80 + 10}%`,
+                        width: `${(m.widthPercent / totW) * 92}%`,
+                        height: `${(m.heightPercent / totH) * 80}%`,
+                      }}
+                    />
+                  ))}
+                </div>
+              );
+            })()}
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+              <span className="hint" style={{ fontSize: 10 }}>
+                {p.monitors.map((m) => m.name).join(', ')}
+              </span>
+              <button
+                className="panel-iconbtn"
+                onClick={(e) => { e.stopPropagation(); removeDeskPreset(p.id); }}
+                title="Delete preset"
+              >
+                <Icon name="trash" size={11} />
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </>
   );
-});
+}
