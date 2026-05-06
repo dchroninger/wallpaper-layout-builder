@@ -101,12 +101,6 @@ interface AppState {
   // Diagonal scaling
   scaleCropAreasByDiagonal: (resizedMonitorId: string, newWidthPercent: number) => void;
 
-  // Custom presets
-  customPresets: CustomPreset[];
-  addCustomPreset: (preset: Omit<CustomPreset, 'id'>) => void;
-  removeCustomPreset: (id: string) => void;
-  loadCustomPresets: () => void;
-
   // Persistence
   saveConfig: () => void;
   loadConfig: () => void;
